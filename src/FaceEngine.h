@@ -4,7 +4,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
-//ºçÈíÈËÁ³Ê¶±ğ
+//è™¹è½¯äººè„¸è¯†åˆ«
 #include "arcsoft_face_sdk.h"
 #include "amcomdef.h"
 #include "asvloffscreen.h"
@@ -53,6 +53,7 @@ FaceEngine::FaceEngine(ASF_DetectMode detect_mode, ASF_OrientPriority op, int ma
 
 	int res = ASFInitEngine(detect_mode, op, max_face_num,
 		ASF_FACE_DETECT | ASF_FACERECOGNITION | ASF_LIVENESS, &EngineHandle);
+	if (res != 0) throw res;
 	ASF_LivenessThreshold ts = { 0 };
 	ts.thresholdmodel_BGR = 0.75;
 	ASFSetLivenessParam(EngineHandle, &ts);
@@ -85,13 +86,13 @@ ASF_SingleFaceInfo FaceEngine::GetSingleFace(ASF_MultiFaceInfo& faces, int i)
 	return face;
 }
 
-// ×¢Òâ£¡DetectFace¶¼»á¸²¸ÇÉÏ´ÎµÄ½á¹û¡£
+// æ³¨æ„ï¼DetectFaceéƒ½ä¼šè¦†ç›–ä¸Šæ¬¡çš„ç»“æœã€‚
 ASF_MultiFaceInfo FaceEngine::DetectFace(Mat& image)
 {
 	Mat img = ImageProcess(image);
 	ASF_MultiFaceInfo faces = { 0 };
-	ASFDetectFaces(EngineHandle, img.cols, img.rows, ASVL_PAF_RGB24_B8G8R8, (MUInt8*)img.data, &faces);
-
+	int res = ASFDetectFaces(EngineHandle, img.cols, img.rows, ASVL_PAF_RGB24_B8G8R8, (MUInt8*)img.data, &faces);
+	if (res != 0) throw res;
 	//for (int i = 0; i < faces.faceNum; i++)
 	//{
 	//	void * dataAddress = faces.faceDataInfoList[i].data;
@@ -106,8 +107,9 @@ ASF_FaceFeature FaceEngine::GetFaceFeature(Mat& image, ASF_SingleFaceInfo& face,
 {
 	Mat img = ImageProcess(image);
 	ASF_FaceFeature fea = { 0 };
-	ASFFaceFeatureExtract(EngineHandle, img.cols, img.rows, ASVL_PAF_RGB24_B8G8R8,
+	int res = ASFFaceFeatureExtract(EngineHandle, img.cols, img.rows, ASVL_PAF_RGB24_B8G8R8,
 		(MUInt8*)img.data, &face, isReg ? ASF_REGISTER : ASF_RECOGNITION, hasMask, &fea);
+	if (res != 0) throw res;
 	if (deepCopy)
 	{
 		void* t = fea.feature;
@@ -120,7 +122,8 @@ ASF_FaceFeature FaceEngine::GetFaceFeature(Mat& image, ASF_SingleFaceInfo& face,
 float  FaceEngine::FaceCompare(ASF_FaceFeature& face1, ASF_FaceFeature& face2)
 {
 	float res = 0;
-	ASFFaceFeatureCompare(EngineHandle, &face1, &face2, &res);
+	int resc = ASFFaceFeatureCompare(EngineHandle, &face1, &face2, &res);
+	if (resc != 0) throw resc;
 	return res;
 }
 
@@ -133,9 +136,12 @@ bool FaceEngine::IsRGBLive(Mat& image, ASF_SingleFaceInfo& face)
 	faces.faceOrient = &(face.faceOrient);
 	faces.faceDataInfoList = &(face.faceDataInfo);
 	faces.faceNum = 1;
-	ASFProcess(EngineHandle, img.cols, img.rows, ASVL_PAF_RGB24_B8G8R8, (MUInt8*)img.data, &faces, ASF_LIVENESS);
+	int res;
+	res = ASFProcess(EngineHandle, img.cols, img.rows, ASVL_PAF_RGB24_B8G8R8, (MUInt8*)img.data, &faces, ASF_LIVENESS);
+	if (res != 0) throw res;
 	ASF_LivenessInfo info = { 0 };
-	ASFGetLivenessScore(EngineHandle, &info);
+	res = ASFGetLivenessScore(EngineHandle, &info);
+	if (res != 0) throw res;
 	return info.isLive[0] == 1;
 }
 
@@ -161,8 +167,8 @@ ASF_FaceFeature FaceEngine::LoadFaceFeature(string file)
 	return fea;
 }
 
-// shape = 1 , Õı·½ĞÎ
-// shape != 1 , Ô²ĞÎ
+// shape = 1 , æ­£æ–¹å½¢
+// shape != 1 , åœ†å½¢
 void FaceEngine::DrawFaceRect(Mat& img, ASF_SingleFaceInfo face, int shape = 1, Scalar color = Scalar(0, 255, 0), int thickness = 2)
 {
 	Rect rect(
@@ -181,8 +187,8 @@ void FaceEngine::DrawFaceRect(Mat& img, ASF_SingleFaceInfo face, int shape = 1, 
 	}
 }
 
-// shape = 1 , Õı·½ĞÎ
-// shape != 1 , Ô²ĞÎ
+// shape = 1 , æ­£æ–¹å½¢
+// shape != 1 , åœ†å½¢
 void FaceEngine::DrawFaceRect(Mat& img, ASF_MultiFaceInfo faces, int shape = 1, Scalar color = Scalar(0, 255, 0), int thickness = 2)
 {
 	for (int i = 0; i < faces.faceNum; i++)
